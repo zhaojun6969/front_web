@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div id="message">111</div>
+    <!-- <button onclick="demo()">同意单点登录</button> -->
+</body>
+<script>
+    const div = document.getElementById('message');
+    const hostname = window.location.hostname;
+    function getCookie(name) {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [key, value] = cookie.trim().split('=');
+        if (key === name) {
+            return decodeURIComponent(value);
+        }
+    }
+    return null;
+    }
+const demo =async ()=>{
+   try {
+    // 基础用法（主要针对 Cookie）
+    // await document.requestStorageAccess();
+    // 高级用法（Chrome 119+ 支持申请 localStorage 访问）
+    const handle = await document.requestStorageAccess({ localStorage: true });
+    div.innerText += "\n权限申请成功！";
+    // 此时 iframe 里的 a.com 已经可以读到它作为主站时的 localStorage/Cookie 了
+    
+    // 如果是 ai 环境（使用 localStorage），直接获取 token，不要刷新
+    if(hostname.indexOf('shop') == -1){
+        let storage = window.localStorage;
+        if (handle && handle.localStorage) {
+            storage = handle.localStorage;
+        }
+        const token = storage.getItem('token');
+        if(token){
+            div.innerText='ai环境token:'+token;
+            postMessageToParent(token);
+        }else{
+            div.innerText='No token found after access'
+        }
+    } else {//商城环境（Cookie）直接获取
+        getShopToken();
+    }
+  } catch (err) {
+    div.innerText += "\n权限申请被拒绝或发生错误: " + JSON.stringify(err);
+  }
+}
+    function getShopToken(){
+        // 调试信息：检查是否有权限以及 Cookie 内容
+        document.hasStorageAccess().then(hasAccess => {
+            if (!hasAccess) {
+                div.innerText += '\n[Warn] No Storage Access granted according to API.';
+            }
+        });
+        
+        const allCookies = document.cookie;
+        if (!allCookies) {
+             div.innerText += '\n[Warn] document.cookie is empty.';
+        }
+
+        let token = null;
+        const strategy = getCookie('auth.strategy');
+        
+        if (strategy) {
+            const tokenKey = `auth._token.${strategy}`;
+            token = getCookie(tokenKey);
+        }
+        
+        // 备用方案：如果无法通过 strategy 获取，尝试直接从 cookie 字符串中查找 token
+        if (!token && allCookies) {
+            const match = allCookies.match(/auth\._token\.[^=]+=([^;]+)/);
+            if (match) {
+                token = decodeURIComponent(match[1]);
+            }
+        }
+
+        if(token){
+            div.innerText='商城环境token:'+token
+        }else{
+            div.innerText += '\nNo token found. Cookies: ' + allCookies;
+        }
+        postMessageToParent(token);
+    }
+    function getAiToken(){
+        const token = getCookie('token');
+        if(token){
+            div.innerText='ai环境token:'+token
+        }else{
+            div.innerText='No token found'
+        }
+        postMessageToParent(token);
+    }
+    setTimeout(() => {
+        if(hostname.indexOf('shop')!=-1){//商城环境
+            getShopToken()
+        }else{//ai环境
+            getAiToken()
+        }
+    }, 20);
+    function postMessageToParent(token) {
+        const message = {
+            method:'getToken',
+            token:token
+        }
+        window.parent.postMessage(message, '*');
+    }
+</script>
+</html>

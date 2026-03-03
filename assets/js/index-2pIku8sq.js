@@ -1,0 +1,1 @@
+import{r,h as t}from"./index-B1XC7r_k.js";import"./vendor-D4CJIvJR.js";class o{constructor(){}getUserStatistics(){return r.common(t.USER_STATISTICS,{})}getModelLimits(){return r.common(t.MODEL_LIMITS,{})}}export{o as M};
